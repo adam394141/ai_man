@@ -256,9 +256,17 @@ const STEPS = [
     sections:[]
   },
   { id:'productVideoScript', label:'影片腳本', title:'商品影片腳本', phase:'product',
-    desc:'生成多段式腳本，搭配隔天的影片剪輯課一起用',
-    infoMsg:'這邊會生成完整的分段腳本和多組影片素材提示詞，隔天上剪輯課的時候會用到。',
-    sections:[]
+    desc:'生成多段式腳本，每段 5 秒搭配剪輯使用',
+    infoMsg:'AI 會根據你設定的秒數，自動拆成每段約 5 秒的分鏡腳本，搭配影片素材提示詞。',
+    sections:[
+      { title:'腳本設定', fields:[
+        { id:'scriptSeconds', label:'影片總長度（秒）', hint:'預設 20～30 秒，也可以自己輸入',
+          type:'chips_with_custom',
+          chips:['15 秒','20 秒','30 秒','45 秒','60 秒'],
+          customId:'scriptSecondsCustom', customLabel:'或自訂秒數',
+          customPh:'例：25' }
+      ]}
+    ]
   },
   { id:'clone', label:'克隆人', title:'克隆人圖片 + 影片', phase:'clone',
     desc:'真人克隆 · Q版克隆 · 克隆寵物 — 圖片和影片都幫你生成',
@@ -276,12 +284,12 @@ const STEPS = [
       ]}
     ]
   },
-  { id:'gamma', label:'介紹網頁', title:'Gamma 介紹頁', phase:'extra',
+  { id:'gamma', label:'介紹網頁', title:'Gamma 介紹頁', phase:'clone',
     desc:'用 Gamma 做一頁你的克隆人 IP 介紹網頁',
     infoMsg:'Gamma 可以用 AI 一鍵生成漂亮的網頁。把下方的文字貼到 Gamma 就能生成你的 IP 介紹頁面。',
     sections:[]
   },
-  { id:'suno', label:'音樂', title:'Suno 品牌音樂', phase:'extra',
+  { id:'suno', label:'音樂', title:'Suno 品牌音樂', phase:'clone',
     desc:'用 Suno 生成你的專屬品牌 BGM，AI 會根據你的 IP 自動判斷適合的風格',
     infoMsg:'AI 會根據你前面填的所有資訊，自動判斷什麼音樂風格最適合你的克隆人 IP。你也可以自己選偏好的風格覆蓋 AI 的判斷。',
     sections:[
@@ -303,6 +311,7 @@ let D = {
   chosenDirection:'',
   ipName:'',
   productName:'', productDesc:'',
+  scriptSeconds:'', scriptSecondsCustom:'',
   cloneGender:'', cloneAge:'', cloneStyle:'', cloneStyleCustom:'',
   hasPet:'', petDesc:'',
   musicMood:'', musicMoodCustom:''
@@ -333,6 +342,8 @@ function PT(stepIdx) {
   const cAge = g.cloneAge || '（選年齡感）';
   const cStyle = (g.cloneStyleCustom && g.cloneStyleCustom.trim()) ? g.cloneStyleCustom.trim() : (g.cloneStyle || '（選風格）');
   const petD = g.petDesc ? g.petDesc.trim() : '';
+  const secCustom = (g.scriptSecondsCustom && g.scriptSecondsCustom.trim()) ? g.scriptSecondsCustom.trim() + ' 秒' : '';
+  const totalSec = secCustom || g.scriptSeconds || '20～30 秒';
   const hasPet = g.hasPet === '要！我有寵物' && petD;
   const mood = (g.musicMoodCustom && g.musicMoodCustom.trim()) ? g.musicMoodCustom.trim() : (g.musicMood || '輕快活潑');
   const tn = (stepIdx !== 1) ? toolNote(g.mainTool) : '';
@@ -471,21 +482,24 @@ function PT(stepIdx) {
 每組提示詞都要包含：畫面主體、場景環境、鏡頭運動（推近/環繞/固定）、光線、色調、風格關鍵字。` + tn;
 
     case 9:
-      return `接下來幫我生成「${prod}」的多段式商品影片內容，隔天上剪輯課會用到：
+      return `幫我生成「${prod}」的多段式商品影片腳本：
 
-1. 商品介紹影片腳本（30-60 秒）
-- 結構：開場 Hook（3秒）→ 商品亮相 → 核心賣點（3個）→ 使用場景 → CTA
+影片總長度：${totalSec}
+每段大約 5 秒，自動拆成對應的段數。
+
+1. 完整分鏡腳本
+- 結構：開場 Hook → 商品亮相 → 核心賣點 → 使用場景 → CTA
 - 語氣用「${ip}」的角色人設來說話
-- 每段都標注畫面指示和建議秒數
+- 每段都標注：秒數、畫面指示、要說的話 / 字幕
 - 結尾加引導互動的話
 
 2. 各分段的 AI 影片素材提示詞（英文）
-- 針對腳本裡的每個段落，各給一組影片提示詞
+- 針對每個段落，各給一組影片提示詞
 - 可以直接貼到 AI 影片工具生成素材
 - 包含：畫面描述、鏡頭運動、光線、風格
 
 3. 開場 Hook 影片提示詞（3 個版本）
-- 前 3 秒的抓眼球畫面
+- 前 3-5 秒的抓眼球畫面
 - 要有衝擊力，讓人停下來看` + tn;
 
     case 10: {
@@ -612,7 +626,7 @@ function renderField(f) {
 
 function renderStep(idx) {
   const s = STEPS[idx], cn = CN[idx] || String(idx + 1);
-  const phaseLabels = { locate:'找定位', brand:'建品牌', product:'做商品', clone:'做克隆人', extra:'加分項' };
+  const phaseLabels = { locate:'找定位', brand:'建品牌', product:'做商品', clone:'做克隆人' };
   let body = '';
   if(s.phase) body += `<div class="phase-tag ${s.phase}">${phaseLabels[s.phase]}</div>`;
   body += `<div class="sth"><div class="stn">${cn}</div>
@@ -628,8 +642,6 @@ function renderStep(idx) {
     <span class="pbl">複製這段話貼到 AI</span>
     <button class="cpb" id="cb${idx}" onclick="doCopy(${idx},this)">複製</button>
   </div><div class="pc" id="pt${idx}">${PT(idx)}</div></div>`;
-  if(idx === STEPS.length - 1)
-    body += `<div class="ib" style="margin-top:14px"><span class="ic">🎉</span><span>恭喜完成所有步驟！你的 AI 數字人 IP 已經準備好了，去發你的第一篇貼文吧！</span></div>`;
   const isLast = idx === STEPS.length - 1, isFirst = idx === 0;
   body += `<div class="nr">
     ${!isFirst ? `<button class="bpr" onclick="pv()">← 上一步</button>` : ''}
@@ -693,7 +705,7 @@ function showDone() {
   document.getElementById('app').innerHTML = `<div class="fin">
     <div class="fin-ic">🎊</div><h2>AI 數字人 IP 建立完成！</h2>
     <p style="margin-bottom:10px">你已完成所有 ${STEPS.length} 個步驟</p>
-    <p style="color:var(--txm);font-size:14px;margin-bottom:36px">IP 定位、角色、商品、克隆人素材全部到齊。<br>現在就去發你的第一篇貼文吧！</p>
+    <p style="color:var(--txm);font-size:14px;margin-bottom:36px">IP 定位、角色、商品、克隆人素材全部到齊。<br>可以隨時回來看之前的設定和提示詞。</p>
     <button class="bnx" onclick="cur=0;render()">重新瀏覽</button>
     <div class="fbrand" style="margin-top:44px">© 華翼品牌形象設計 &nbsp;·&nbsp;
       <a href="https://huayi.tw" target="_blank" rel="noopener">HUAYI.TW</a> &nbsp;·&nbsp; 版權所有</div>
