@@ -282,11 +282,11 @@ const STEPS = [
     sections:[]
   },
   { id:'suno', label:'音樂', title:'Suno 品牌音樂', phase:'extra',
-    desc:'用 Suno 生成你的專屬品牌 BGM',
-    infoMsg:'用 Suno 幫你的品牌做一首專屬背景音樂，讓影片質感立刻升級。直接把下方的文字貼到 Suno 就好。',
+    desc:'用 Suno 生成你的專屬品牌 BGM，AI 會根據你的 IP 自動判斷適合的風格',
+    infoMsg:'AI 會根據你前面填的所有資訊，自動判斷什麼音樂風格最適合你的克隆人 IP。你也可以自己選偏好的風格覆蓋 AI 的判斷。',
     sections:[
-      { title:'音樂偏好', fields:[
-        { id:'musicMood', label:'你想要什麼感覺的音樂？', type:'chips_with_custom',
+      { title:'音樂偏好（可不選，讓 AI 自己判斷）', fields:[
+        { id:'musicMood', label:'你有偏好的音樂感覺嗎？', hint:'不選的話 AI 會自動配', type:'chips_with_custom',
           chips:['輕快活潑','溫暖療癒','專業大氣','搞笑有趣','文青質感','動感節奏'],
           customId:'musicMoodCustom', customLabel:'或自己描述',
           customPh:'例：像咖啡廳裡放的那種爵士樂...' }
@@ -521,31 +521,63 @@ function PT(stepIdx) {
       return p + tn;
     }
 
-    case 11:
-      return `幫我寫一段可以直接貼到 Gamma 的內容，用來生成「${ip}」的 IP 介紹網頁。
+    case 11: {
+      let summary = '以下是我前面所有步驟填過的完整資訊，請全部讀完再幫我做 Gamma 簡報：\n\n';
+      summary += '【基本設定】\n';
+      summary += `- 經營平台：${plat}\n`;
+      summary += `- IP 名稱：${ip}\n`;
+      summary += `- 內容方向：${dir}\n`;
+      if(g.currentLife) summary += `\n【我的背景】\n- 生活狀態：${g.currentLife}\n`;
+      if(g.timeSpent) summary += `- 花最多時間在：${g.timeSpent}\n`;
+      if(g.friendsTopic) summary += `- 朋友都說我很會：${g.friendsTopic}\n`;
+      if(g.memorableExp) summary += `- 印象最深的經歷：${g.memorableExp}\n`;
+      if(g.complaint) summary += `- 最常抱怨的事：${g.complaint}\n`;
+      if(g.interests) summary += `- 興趣 / 最近迷什麼：${g.interests}\n`;
+      summary += `\n【商品資訊】\n- 商品：${prod}\n- 描述：${prodD}\n`;
+      summary += `\n【克隆人設定】\n- 性別：${cGender}\n- 年齡感：${cAge}\n- 風格：${cStyle}\n`;
+      if(hasPet) summary += `- 寵物：${petD}\n`;
+      summary += `\n---\n\n根據以上所有資訊，幫我寫一段可以直接貼到 Gamma 的完整內容，生成「${ip}」的 IP 介紹簡報網頁。
 
-網頁要包含：
-1. Hero 區塊 — IP 名稱「${ip}」+ 一句話定位
-2. 關於我 — 角色介紹、個性、故事背景
-3. 內容方向 — 這個帳號在做什麼、觀眾能得到什麼
-4. 作品展示區 — 預留放影片和圖片的區塊
-5. 合作洽詢 — 聯絡方式、合作方式
+簡報要包含：
+1. Hero 封面 — IP 名稱「${ip}」+ 一句話定位 + 視覺氛圍描述
+2. 關於我 — 角色介紹、個性特色、背後的故事
+3. 內容方向 — 這個帳號在做什麼、觀眾能得到什麼價值
+4. 商品介紹 — 「${prod}」的核心賣點和特色
+5. 克隆人形象 — 數字人角色的視覺描述和人設亮點
+${hasPet ? '6. 寵物夥伴 — ' + petD + ' 的角色定位\n7. 作品展示區 — 預留放影片和圖片的區塊\n8. 合作洽詢 — 聯絡方式、合作方式說明' : '6. 作品展示區 — 預留放影片和圖片的區塊\n7. 合作洽詢 — 聯絡方式、合作方式說明'}
 
-請用${plat}的風格來設計，視覺調性要符合我們設定的角色。
-直接給我可以貼進 Gamma 的完整文字內容。` + tn;
+視覺調性要符合「${ip}」的角色人設，適合在${plat}上分享。
+直接給我可以貼進 Gamma 的完整文字內容。`;
+      return summary + tn;
+    }
 
-    case 12:
-      return `幫我生成一段可以直接貼到 Suno 的音樂描述：
-
-品牌名稱：${ip}
-內容方向：${dir}
-音樂感覺：${mood}
+    case 12: {
+      let mSummary = '以下是我的 IP 完整資訊，請根據這些判斷最適合的音樂風格：\n\n';
+      mSummary += `- IP 名稱：${ip}\n`;
+      mSummary += `- 內容方向：${dir}\n`;
+      mSummary += `- 經營平台：${plat}\n`;
+      mSummary += `- 克隆人風格：${cGender}，${cAge}外貌，${cStyle}\n`;
+      if(g.currentLife) mSummary += `- 我的背景：${g.currentLife}\n`;
+      if(g.interests) mSummary += `- 興趣：${g.interests}\n`;
+      mSummary += `- 商品：${prod}\n`;
+      const hasMoodPref = (g.musicMoodCustom && g.musicMoodCustom.trim()) || g.musicMood;
+      if(hasMoodPref) {
+        mSummary += `\n我偏好的音樂感覺：${mood}\n`;
+        mSummary += '請以這個偏好為主，但如果你根據我的 IP 資訊覺得有更適合的，也可以建議。\n';
+      } else {
+        mSummary += '\n我沒有特別偏好，請你根據以上資訊自己判斷什麼音樂風格最適合我的 IP。\n';
+      }
+      mSummary += `\n---\n\n幫我生成可以直接貼到 Suno 的音樂描述：
 
 需要兩首：
 1. 品牌主題 BGM（30 秒循環，無人聲，適合當影片背景音樂）
 2. 片頭音樂（5-8 秒，有記憶點，適合當每支影片的固定片頭）
 
-每首都給我 Suno 的英文提示詞，包含：風格、情緒、BPM、樂器，以及一段中文說明告訴我這首歌適合用在什麼場景。` + tn;
+每首都給我：
+- Suno 的英文提示詞（包含：風格、情緒、BPM、樂器）
+- 一段中文說明告訴我為什麼這個風格適合我的 IP、這首歌適合用在什麼場景`;
+      return mSummary + tn;
+    }
 
     default: return '';
   }
